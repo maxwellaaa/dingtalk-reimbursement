@@ -1,0 +1,18 @@
+{
+  "name": "dingtalk-reimbursement",
+  "version": "1.0.0",
+  "private": true,
+  "description": "钉钉协作报销 H5 · 服务器托管就绪",
+  "scripts": {
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "pack:release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/pack-release.ps1",
+    "verify:all": "npm run verify:all --prefix backend",
+    "mobile:start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/mobile-tunnel/start-dingtalk-mobile.ps1",
+    "mobile:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/mobile-tunnel/stop-dingtalk-mobile.ps1 -RestoreFrontendUrl",
+    "mobile:stop:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/mobile-tunnel/stop-dingtalk-mobile.ps1 -All -RestoreFrontendUrl",
+    "mobile:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/mobile-tunnel/create-desktop-shortcut.ps1"
+  }
+}

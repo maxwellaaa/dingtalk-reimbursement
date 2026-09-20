@@ -1,0 +1,54 @@
+# 本地 / 开发 Docker 栈（含示例密码，勿用于生产）
+# 生产请使用：docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: reimbursement
+      MYSQL_USER: reimb
+      MYSQL_PASSWORD: reimb123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - upload_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  mysql_data:
+  upload_data:

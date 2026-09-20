@@ -1,0 +1,92 @@
+{
+  "archivedAt": "2026-09-17",
+  "version": "1.0.0",
+  "projectPath": "F:/obsidian知识库/cursor/dingtalk-reimbursement",
+  "ports": {
+    "backend": 3000,
+    "frontendVite": 5173,
+    "mysql": 3306,
+    "dockerHttp": 8080,
+    "cpolarUi": 4040
+  },
+  "frontend": {
+    "base": "/h5/",
+    "localUrl": "http://127.0.0.1:5173/h5/"
+  },
+  "dingtalkConsole": {
+    "appId": "9ac19a51-8ddb-4094-8dda-45db01f130e1",
+    "clientId": "dingiwa7gpxmyfk9g4ne",
+    "agentId": "4823915526",
+    "corpId": "dingaba4deb47a933140c7ca53aad90ff185",
+    "note": "AppId is UUID; do NOT use as CORP_ID. Secrets not stored here."
+  },
+  "envKeys": [
+    "DINGTALK_APP_KEY",
+    "DINGTALK_APP_SECRET",
+    "DINGTALK_AGENT_ID",
+    "DINGTALK_CORP_ID",
+    "DINGTALK_PROCESS_CODE",
+    "DINGTALK_STREAM_ENABLED",
+    "DINGTALK_CALLBACK_TOKEN",
+    "DINGTALK_CALLBACK_AES_KEY",
+    "DINGTALK_OA_ATTACHMENT_LABEL",
+    "PORT",
+    "NODE_ENV",
+    "FRONTEND_URL",
+    "JWT_SECRET",
+    "JWT_EXPIRES_IN",
+    "APPROVAL_MODE",
+    "WEBHOOK_SECRET",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_USER",
+    "DB_PASSWORD",
+    "DB_NAME",
+    "MYSQL_ROOT_PASSWORD",
+    "UPLOAD_DIR",
+    "UPLOAD_MAX_MB",
+    "HTTP_PORT",
+    "BACKUP_DIR",
+    "BACKUP_RETENTION_DAYS"
+  ],
+  "sysConfigDefaults": {
+    "approval.mode": "B",
+    "dingtalk.process_code": "",
+    "budget.strict_mode": "true",
+    "invoice.duplicate_check": "true",
+    "invoice.verify_enabled": "false",
+    "api.usage.warn_threshold": "8000",
+    "approval.finance_a_max": "5000",
+    "approval.finance_b_max": "50000",
+    "approval.gm_a_max": "50000",
+    "approval.gm_b_max": "200000"
+  },
+  "approvalAmountThresholds": {
+    "financeAMax": 5000,
+    "financeBMax": 50000,
+    "gmAMax": 50000,
+    "gmBMax": 200000,
+    "skipGmIfAmountLe": 5000
+  },
+  "roles": ["employee", "project_manager", "finance", "gm"],
+  "grades": ["A", "B", "C"],
+  "devSeedUsers": [
+    "dev_user",
+    "dev_user_2",
+    "dev_manager",
+    "dev_pm_b",
+    "dev_pm_c",
+    "dev_finance_a",
+    "dev_finance_b",
+    "dev_finance_c",
+    "dev_gm_a",
+    "dev_gm_b",
+    "dev_gm_c"
+  ],
+  "scripts": {
+    "mobileStart": "start-mobile.cmd",
+    "mobileStop": "stop-mobile.cmd",
+    "packRelease": "npm run pack:release",
+    "verifyAll": "npm run verify:all --prefix backend"
+  }
+}
