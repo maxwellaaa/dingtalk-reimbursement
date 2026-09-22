@@ -115,6 +115,72 @@ export async function searchUsers({ q = '', page = 1, pageSize = 30 } = {}) {
   };
 }
 
+function roleScopeKey(row) {
+  return [
+    row.roleCode,
+    row.grade || '',
+    row.regionId || '',
+    row.projectId || '',
+  ].join('|');
+}
+
+function consolidateRoleRows(roles) {
+  const groups = new Map();
+  for (const r of roles) {
+    const key = roleScopeKey(r);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ...r,
+        roleIds: [r.id],
+        duplicateCount: 1,
+      });
+      continue;
+    }
+    const g = groups.get(key);
+    g.roleIds.push(r.id);
+    g.duplicateCount += 1;
+  }
+  return [...groups.values()].map((g) => ({
+    ...g,
+    id: g.roleIds[0],
+    isDuplicate: g.duplicateCount > 1,
+  }));
+}
+
+/** 合并 MySQL UNIQUE 对 NULL project_id 允许多行造成的重复角色 */
+export async function dedupeUserRoles(userId) {
+  const rows = await query(
+    `SELECT id, role_code AS roleCode, grade, region_id AS regionId, project_id AS projectId
+     FROM user_role
+     WHERE user_id = :userId AND status = 1
+     ORDER BY id ASC`,
+    { userId },
+  );
+
+  const keepIds = new Set();
+  const deactivateIds = [];
+  const buckets = new Map();
+
+  for (const row of rows) {
+    const key = roleScopeKey(row);
+    if (!buckets.has(key)) {
+      buckets.set(key, row.id);
+      keepIds.add(row.id);
+      continue;
+    }
+    deactivateIds.push(row.id);
+  }
+
+  if (deactivateIds.length) {
+    await query(
+      `UPDATE user_role SET status = 0 WHERE id IN (${deactivateIds.map((_, i) => `:id${i}`).join(',')})`,
+      Object.fromEntries(deactivateIds.map((id, i) => [`id${i}`, id])),
+    );
+  }
+
+  return { removed: deactivateIds.length, kept: keepIds.size };
+}
+
 export async function getUserRolesDetail(userId) {
   const users = await query(
     `SELECT id, ding_user_id AS dingUserId, name, mobile, title
@@ -139,14 +205,21 @@ export async function getUserRolesDetail(userId) {
     { userId },
   );
 
+  const mapped = roles.map((r) => ({
+    ...r,
+    roleLabel: ROLE_LABELS[r.roleCode] || r.roleCode,
+    gradeLabel: r.grade ? GRADE_LABELS[r.grade] : null,
+    scopeText: r.projectCode
+      ? `${r.projectCode} ${r.projectName || ''}`.trim()
+      : (r.regionName || (r.roleCode === 'project_manager' && r.grade === 'C' ? '授权工地关联项目（多项目）' : '—')),
+  }));
+
   const access = await getUserAccessProfile(userId);
+  const consolidated = consolidateRoleRows(mapped);
   return {
     user: users[0],
-    roles: roles.map((r) => ({
-      ...r,
-      roleLabel: ROLE_LABELS[r.roleCode] || r.roleCode,
-      gradeLabel: r.grade ? GRADE_LABELS[r.grade] : null,
-    })),
+    roles: consolidated,
+    rawRoleCount: mapped.length,
     access,
   };
 }
@@ -167,8 +240,9 @@ function normalizeRoleInput(body) {
 
   if (roleCode === ROLE_CODES.project_manager) {
     if (!['A', 'B', 'C'].includes(grade)) throw badRequest('项目经理需选择档位 A/B/C');
-    if (!projectId) throw badRequest('项目经理需绑定项目');
-    return { roleCode, grade, projectId, regionId: null };
+    if (grade === 'A' && !projectId) throw badRequest('项目经理 A 需绑定项目');
+    if (grade === 'B' && !projectId) throw badRequest('项目经理 B 需绑定项目');
+    return { roleCode, grade, projectId: projectId || null, regionId: null };
   }
 
   if (roleCode === ROLE_CODES.finance) {
@@ -297,6 +371,8 @@ export async function assignRole(actorUserId, targetUserId, body) {
     if (!regions[0]) throw badRequest('片区不存在');
   }
 
+  await dedupeUserRoles(targetUserId);
+
   await query(
     `INSERT INTO user_role (user_id, role_code, grade, region_id, project_id, status)
      VALUES (:userId, :roleCode, :grade, :regionId, :projectId, 1)
@@ -310,6 +386,7 @@ export async function assignRole(actorUserId, targetUserId, body) {
     },
   );
 
+  await dedupeUserRoles(targetUserId);
   await syncProjectFields(targetUserId, normalized.roleCode, normalized.grade, normalized.projectId);
   await writeAudit(actorUserId, 'assign_role', {
     targetUserId,

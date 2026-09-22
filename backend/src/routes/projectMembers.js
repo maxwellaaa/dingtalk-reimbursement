@@ -2,11 +2,16 @@ import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
 import {
   addProjectMember,
+  batchAddProjectMembers,
+  batchRemoveProjectMembers,
+  copyProjectMembers,
+  exportProjectMembersWorkbook,
   getMembershipSummary,
   joinProjects,
   leaveProject,
   listManageableProjects,
   listMyJoinedProjects,
+  listProjectMemberAudit,
   listProjectMembers,
   removeProjectMember,
   searchUsersForMember,
@@ -72,6 +77,38 @@ router.get('/projects/:id/members', authRequired, async (req, res) => {
   }
 });
 
+router.get('/projects/:id/members/export', authRequired, async (req, res) => {
+  try {
+    const { buffer, filename } = await exportProjectMembersWorkbook(
+      req.user.id,
+      Number(req.params.id),
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ code: status, message: err.message });
+  }
+});
+
+router.get('/projects/:id/members/audit', authRequired, async (req, res) => {
+  try {
+    const list = await listProjectMemberAudit(
+      req.user.id,
+      Number(req.params.id),
+      req.query.limit,
+    );
+    res.json({ code: 0, data: { list } });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ code: status, message: err.message });
+  }
+});
+
 router.get('/projects/:id/member-candidates', authRequired, async (req, res) => {
   try {
     const list = await searchUsersForMember(req.user.id, Number(req.params.id), req.query.q);
@@ -84,8 +121,41 @@ router.get('/projects/:id/member-candidates', authRequired, async (req, res) => 
 
 router.post('/projects/:id/members', authRequired, async (req, res) => {
   try {
-    const list = await addProjectMember(req.user.id, Number(req.params.id), req.body?.userId);
+    const projectId = Number(req.params.id);
+    if (Array.isArray(req.body?.userIds) && req.body.userIds.length) {
+      const data = await batchAddProjectMembers(req.user.id, projectId, req.body.userIds);
+      return res.json({ code: 0, data });
+    }
+    const list = await addProjectMember(req.user.id, projectId, req.body?.userId);
     res.json({ code: 0, data: { list } });
+  } catch (err) {
+    const status = err.status || 400;
+    res.status(status).json({ code: status, message: err.message });
+  }
+});
+
+router.post('/projects/:id/members/batch-remove', authRequired, async (req, res) => {
+  try {
+    const data = await batchRemoveProjectMembers(
+      req.user.id,
+      Number(req.params.id),
+      req.body?.userIds || [],
+    );
+    res.json({ code: 0, data });
+  } catch (err) {
+    const status = err.status || 400;
+    res.status(status).json({ code: status, message: err.message });
+  }
+});
+
+router.post('/projects/:id/members/copy-from', authRequired, async (req, res) => {
+  try {
+    const data = await copyProjectMembers(
+      req.user.id,
+      req.body?.sourceProjectId,
+      Number(req.params.id),
+    );
+    res.json({ code: 0, data });
   } catch (err) {
     const status = err.status || 400;
     res.status(status).json({ code: status, message: err.message });

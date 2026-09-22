@@ -3,6 +3,7 @@ import { authRequired } from '../middleware/auth.js';
 import {
   assignRole,
   assertCanManageRoles,
+  dedupeUserRoles,
   getUserRolesDetail,
   listAdminMeta,
   revokeRole,
@@ -49,6 +50,18 @@ router.get('/users/:id/roles', async (req, res) => {
   try {
     const data = await getUserRolesDetail(Number(req.params.id));
     res.json({ code: 0, data });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ code: status, message: err.message });
+  }
+});
+
+router.post('/users/:id/roles/dedupe', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const result = await dedupeUserRoles(userId);
+    const data = await getUserRolesDetail(userId);
+    res.json({ code: 0, data: { ...result, ...data } });
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ code: status, message: err.message });
